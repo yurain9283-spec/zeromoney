@@ -10,6 +10,53 @@ export class RulesView {
         const mappings = store.get('mappings');
         const isAdmin = this.currentUser.role === 'admin';
 
+        // Defined categories
+        const fixedCategories = ['交通費', '伙食費', '文具用品', '郵電費', '運費', '交際費', '其他'];
+
+        // Group mappings
+        const grouped = {};
+        fixedCategories.forEach(c => grouped[c] = []);
+
+        mappings.forEach(m => {
+            if (grouped[m.category]) {
+                grouped[m.category].push(m);
+            } else {
+                // Handle fallback or dynamic categories
+                if (!grouped['其他']) grouped['其他'] = [];
+                grouped['其他'].push(m);
+            }
+        });
+
+        // Generate HTML for groups
+        const groupsHtml = fixedCategories.map(cat => {
+            const items = grouped[cat];
+            if (items.length === 0) return '';
+
+            return `
+                <div class="category-group" style="margin-bottom: 2rem;">
+                    <h4 style="color:var(--primary); border-bottom:1px solid var(--border); padding-bottom:0.5rem; margin-bottom:1rem;">
+                        ${cat} <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:normal;">(${items.length})</span>
+                    </h4>
+                    <div class="transaction-list">
+                        ${items.map(m => `
+                             <div class="transaction-item">
+                                <div class="t-info">
+                                    <h4>${m.keyword}</h4>
+                                </div>
+                                <div class="text-right flex gap-2" style="align-items:center;">
+                                    ${isAdmin ? `
+                                    <button class="btn btn-outline" style="padding:0.25rem 0.5rem; color:var(--danger); border-color:transparent;" onclick="window.deleteMapping('${m.keyword}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
         return `
             <div class="card">
                 <h3>關鍵字對應規則</h3>
@@ -21,28 +68,15 @@ export class RulesView {
                 ${isAdmin ? `
                 <form id="add-mapping-form" class="flex gap-2 mb-4" style="background:#f8fafc; padding:1rem; border-radius:0.5rem; border:1px solid var(--border);">
                     <input type="text" name="keyword" class="input" placeholder="關鍵字 (例如: Uber)" required>
-                    <input type="text" name="category" class="input" placeholder="類別 (例如: 交通費)" required>
+                    <select name="category" class="input">
+                        ${fixedCategories.map(c => `<option value="${c}">${c}</option>`).join('')}
+                    </select>
                     <button type="submit" class="btn btn-primary" style="width: auto;">新增規則</button>
                 </form>
                 ` : ''}
 
-                 <div class="transaction-list">
-                    ${mappings.length === 0 ? '<p>尚無規則</p>' : ''}
-                    ${mappings.map(m => `
-                         <div class="transaction-item">
-                            <div class="t-info">
-                                <h4>${m.keyword}</h4>
-                            </div>
-                            <div class="text-right flex gap-2" style="align-items:center;">
-                                <span class="badge badge-approved">${m.category}</span>
-                                ${isAdmin ? `
-                                <button class="btn btn-outline" style="padding:0.25rem 0.5rem; color:var(--danger); border-color:transparent;" onclick="window.deleteMapping('${m.keyword}')">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                                ` : ''}
-                            </div>
-                        </div>
-                    `).join('')}
+                 <div class="rules-container">
+                    ${mappings.length === 0 ? '<p>尚無規則</p>' : groupsHtml}
                  </div>
             </div>
         `;
