@@ -20,8 +20,9 @@ export class AdminView {
                 <button class="btn ${this.activeTab === 'review' ? 'btn-primary' : 'btn-outline'}" data-tab="review">審核報帳</button>
                 <button class="btn ${this.activeTab === 'employees' ? 'btn-primary' : 'btn-outline'}" data-tab="employees">員工管理</button>
             </div>
-            
-             <!-- Global Date Filter for Reports -->
+        `;
+
+        const dateFilterHtml = `
              <div class="card" style="background:var(--background); border:none; box-shadow:none; padding:0; margin-bottom:1rem;">
                 <div class="flex gap-2" style="align-items:center;">
                     <label class="label" style="margin:0; min-width:80px;">匯出範圍:</label>
@@ -45,6 +46,7 @@ export class AdminView {
             const pending = expenses.filter(e => e.status === 'pending');
             // Group by Employee option could be added here
             content = `
+                ${dateFilterHtml}
                 <div class="card">
                      <div class="flex justify-between mb-4">
                         <h3>待審核列表 (${pending.length})</h3>
@@ -103,6 +105,7 @@ export class AdminView {
                 </div>
 
                 <div class="card">
+                     ${dateFilterHtml}
                      <div class="flex justify-between" style="align-items:center;">
                         <h3>員工列表</h3>
                         <button id="btn-admin-add-expense" class="btn btn-primary" style="width:auto; font-size:0.9rem;">
