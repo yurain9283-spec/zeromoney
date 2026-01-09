@@ -3,11 +3,13 @@ import { store } from './store.js';
 import { ExpensesView } from './views/Expenses.js';
 import { AdminView } from './views/Admin.js';
 import { RulesView } from './views/Rules.js';
+import { LoginView } from './views/Login.js';
 
 const routes = {
     '/': ExpensesView,
     '/admin': AdminView,
-    '/rules': RulesView
+    '/rules': RulesView,
+    '/login': LoginView
 };
 
 class App {
@@ -16,18 +18,22 @@ class App {
     }
 
     init() {
-        this.renderNavbar();
         this.router();
-
         window.addEventListener('hashchange', () => this.router());
-
-        // Listen for store updates if needed to re-render
-        // For simplicity, we stick to specific events
     }
 
     renderNavbar() {
         const nav = document.getElementById('navbar');
-        const users = store.get('users');
+
+        if (!this.currentUser) {
+            nav.innerHTML = `
+                <a href="#/login" class="brand">
+                    <i class="fas fa-wallet"></i>
+                    ZeroMoney
+                </a>
+            `;
+            return;
+        }
 
         nav.innerHTML = `
             <a href="#/" class="brand">
@@ -37,32 +43,55 @@ class App {
             
             <div class="nav-links">
                 <a href="#/" class="nav-item ${location.hash === '' || location.hash === '#/' ? 'active' : ''}">我的報帳</a>
-                <a href="#/rules" class="nav-item">規則說明</a>
-                ${this.currentUser.role === 'admin' ? '<a href="#/admin" class="nav-item">管理後台</a>' : ''}
+                <a href="#/rules" class="nav-item ${location.hash === '#/rules' ? 'active' : ''}">規則說明</a>
+                ${this.currentUser.role === 'admin' ? `<a href="#/admin" class="nav-item ${location.hash === '#/admin' ? 'active' : ''}">管理後台</a>` : ''}
             </div>
 
-            <div style="margin-left:auto; display:flex; align-items:center; gap:0.5rem; font-size:0.8rem;">
-                <span>${this.currentUser.name}</span>
-                <select id="user-switch" style="border:1px solid #ddd; padding:2px; border-radius:4px;">
-                    ${users.map(u => `<option value="${u.id}" ${u.id === this.currentUser.id ? 'selected' : ''}>${u.name} (${u.role})</option>`).join('')}
-                </select>
+            <div style="margin-left:auto; display:flex; align-items:center; gap:1rem; font-size:0.9rem;">
+                <div style="display:flex; flex-direction:column; align-items:flex-end; line-height:1.2;">
+                     <span style="font-weight:600;">${this.currentUser.name}</span>
+                     <span style="font-size:0.75rem; color:var(--text-secondary);">${this.currentUser.email}</span>
+                </div>
+                <button id="btn-logout" class="btn btn-outline" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">
+                    <i class="fas fa-sign-out-alt"></i> 登出
+                </button>
             </div>
         `;
 
-        document.getElementById('user-switch').addEventListener('change', (e) => {
-            store.login(e.target.value);
-        });
+        const logoutBtn = document.getElementById('btn-logout');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                store.logout();
+            });
+        }
     }
 
     router() {
+        this.currentUser = store.getCurrentUser();
         const path = location.hash.slice(1) || '/';
-        const ViewClass = routes[path] || routes['/'];
 
-        // Simple protection
-        if (path === '/admin' && this.currentUser.role !== 'admin') {
+        // Auth Guard
+        if (!this.currentUser && path !== '/login') {
+            location.hash = '/login';
+            return;
+        }
+
+        // Redirect if logged in trying to access login
+        if (this.currentUser && path === '/login') {
             location.hash = '/';
             return;
         }
+
+        const ViewClass = routes[path] || routes['/'];
+
+        // Role Guard
+        if (path === '/admin' && this.currentUser && this.currentUser.role !== 'admin') {
+            location.hash = '/';
+            return;
+        }
+
+        // Render Navbar first as it depends on auth state
+        this.renderNavbar();
 
         const view = new ViewClass();
         document.getElementById('main-content').innerHTML = view.render();

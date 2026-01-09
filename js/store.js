@@ -87,10 +87,7 @@ class Store {
         if (!localStorage.getItem('money_expenses')) {
             localStorage.setItem('money_expenses', JSON.stringify(DEFAULTS.expenses));
         }
-        // Current User Session
-        if (!localStorage.getItem('money_current_user')) {
-            localStorage.setItem('money_current_user', JSON.stringify(DEFAULTS.users[0])); // Default login as admin
-        }
+        // Current User Session - REMOVED AUTO-LOGIN for explicit login flow
     }
 
     get(key) {
@@ -147,12 +144,21 @@ class Store {
         return JSON.parse(localStorage.getItem('money_current_user'));
     }
 
-    login(userId) {
-        const user = this.get('users').find(u => u.id === userId);
+    loginByEmail(email) {
+        const user = this.get('users').find(u => u.email.toLowerCase() === email.toLowerCase());
         if (user) {
             localStorage.setItem('money_current_user', JSON.stringify(user));
+            window.location.hash = '/';
             window.location.reload();
+            return true;
         }
+        return false;
+    }
+
+    logout() {
+        localStorage.removeItem('money_current_user');
+        window.location.hash = '/login';
+        window.location.reload();
     }
 
     autoCategorize(merchant) {
