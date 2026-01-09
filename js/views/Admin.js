@@ -20,6 +20,24 @@ export class AdminView {
                 <button class="btn ${this.activeTab === 'review' ? 'btn-primary' : 'btn-outline'}" data-tab="review">審核報帳</button>
                 <button class="btn ${this.activeTab === 'employees' ? 'btn-primary' : 'btn-outline'}" data-tab="employees">員工管理</button>
             </div>
+            
+             <!-- Global Date Filter for Reports -->
+             <div class="card" style="background:var(--background); border:none; box-shadow:none; padding:0; margin-bottom:1rem;">
+                <div class="flex gap-2" style="align-items:center;">
+                    <label class="label" style="margin:0; min-width:80px;">匯出範圍:</label>
+                    <select id="report-range-type" class="input" style="width: auto;">
+                        <option value="all">全部時間</option>
+                        <option value="this_month">本月</option>
+                        <option value="last_month">上個月</option>
+                        <option value="custom">自訂範圍</option>
+                    </select>
+                    <div id="report-custom-dates" class="flex gap-2 hidden">
+                        <input type="date" id="report-start" class="input">
+                        <span style="align-self:center;">至</span>
+                        <input type="date" id="report-end" class="input">
+                    </div>
+                </div>
+            </div>
         `;
 
         // CONTENT: REVIEW
@@ -251,14 +269,75 @@ export class AdminView {
         }
 
 
+        // Date Filter Logic
+        const rangeType = document.querySelector('#report-range-type');
+        const customDates = document.querySelector('#report-custom-dates');
+
+        // Restore previous state if simple refresh (mock state)
+        if (rangeType && this.lastRangeType) {
+            rangeType.value = this.lastRangeType;
+            if (this.lastRangeType === 'custom') customDates.classList.remove('hidden');
+        }
+
+        if (rangeType) {
+            rangeType.addEventListener('change', (e) => {
+                this.lastRangeType = e.target.value; // simple state
+                if (e.target.value === 'custom') {
+                    customDates.classList.remove('hidden');
+                } else {
+                    customDates.classList.add('hidden');
+                }
+            });
+        }
+
+        // Helper to filter expenses by date
+        const getFilteredExpenses = (expenses) => {
+            const type = rangeType ? rangeType.value : 'all';
+            if (type === 'all') return expenses;
+
+            const now = new Date();
+            let start, end;
+
+            if (type === 'this_month') {
+                start = new Date(now.getFullYear(), now.getMonth(), 1);
+                end = new Date(now.getFullYear(), now.getMonth() + 1, 0); // Last day
+            } else if (type === 'last_month') {
+                start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                end = new Date(now.getFullYear(), now.getMonth(), 0);
+            } else if (type === 'custom') {
+                const s = document.querySelector('#report-start').value;
+                const e = document.querySelector('#report-end').value;
+                if (s) start = new Date(s);
+                if (e) end = new Date(e);
+            }
+
+            if (!start && !end) return expenses;
+
+            return expenses.filter(exp => {
+                const d = new Date(exp.date);
+                if (start && d < start) return false;
+                if (end && d > end) return false;
+                return true;
+            });
+        };
+
         const exportAllBtn = document.querySelector('#btn-export-all');
         if (exportAllBtn) {
             exportAllBtn.addEventListener('click', () => {
-                const exps = store.get('expenses');
+                const exps = getFilteredExpenses(store.get('expenses'));
                 const csv = generateCSV(exps);
-                downloadCSV(csv, 'all_expenses_report.csv');
+                downloadCSV(csv, `expenses_report_${rangeType.value}.csv`);
             });
         }
+
+        window.exportEmployee = (id) => {
+            let exps = store.get('expenses').filter(e => e.employeeId === id);
+            // Apply date filter
+            exps = getFilteredExpenses(exps);
+
+            const csv = generateCSV(exps);
+            downloadCSV(csv, `employee_${id}_report_${rangeType ? rangeType.value : 'all'}.csv`);
+        };
     }
 
     refresh() {
